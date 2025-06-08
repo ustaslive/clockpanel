@@ -1,0 +1,10 @@
+pages:
+  stage: deploy
+  script:
+    - mkdir public
+    - cp tzpanel.html public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
