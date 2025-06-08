@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Clock Panel</title>
+    <style>
+        .clock-container {
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .clock {
+            text-align: center;
+        }
+        canvas {
+            border: 2px solid #333;
+            border-radius: 50%;
+            background-color: white;
+        }
+        .city-label {
+            margin-top: 10px;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="clock-container">
+        <div class="clock">
+            <canvas id="sanFranciscoClock" width="200" height="200"></canvas>
+            <div class="city-label">
+                San Francisco<br/>America/Los_Angeles<br/><span class="offset"></span><br/>PT
+            </div>
+        </div>
+        <div class="clock">
+            <canvas id="newYorkClock" width="200" height="200"></canvas>
+            <div class="city-label">
+                New York<br/>America/New_York<br/><span class="offset"></span><br/>ET
+            </div>
+        </div>
+        <div class="clock">
+            <canvas id="londonClock" width="200" height="200"></canvas>
+            <div class="city-label">
+                London<br/>Europe/London<br/><span class="offset"></span><br/>GMT
+            </div>
+        </div>
+        <div class="clock">
+            <canvas id="rigaClock" width="200" height="200"></canvas>
+            <div class="city-label">
+                Riga<br/>Europe/Riga<br/><span class="offset"></span><br/>EET
+            </div>
+        </div>
+        <div class="clock">
+            <canvas id="moscowClock" width="200" height="200"></canvas>
+            <div class="city-label">
+                Moscow<br/>Europe/Moscow<br/><span class="offset"></span><br/>MSK
+            </div>
+        </div>
+        <div class="clock">
+            <canvas id="newDelhiClock" width="200" height="200"></canvas>
+            <div class="city-label">
+                New Delhi<br/>Asia/Kolkata<br/><span class="offset"></span><br/>IST
+            </div>
+        </div>
+        <div class="clock">
+            <canvas id="beijingClock" width="200" height="200"></canvas>
+            <div class="city-label">
+                Beijing<br/>Asia/Shanghai<br/><span class="offset"></span><br/>CST
+            </div>
+        </div>
+        <div class="clock">
+            <canvas id="tokyoClock" width="200" height="200"></canvas>
+            <div class="city-label">
+                Tokyo<br/>Asia/Tokyo<br/><span class="offset"></span><br/>JST
+            </div>
+        </div>
+        <div class="clock">
+            <canvas id="canberraClock" width="200" height="200"></canvas>
+            <div class="city-label">
+                Canberra<br/>Australia/Canberra<br/><span class="offset"></span><br/>AEST
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Format the offset into a simple form (e.g., "UTC+2" or "UTC+5:30")
+        function formatOffset(offsetMinutes) {
+            const sign = offsetMinutes >= 0 ? '+' : '-';
+            const absOffset = Math.abs(offsetMinutes);
+            const hours = Math.floor(absOffset / 60);
+            const minutes = absOffset % 60;
+            return minutes === 0 
+                ? `UTC${sign}${hours}` 
+                : `UTC${sign}${hours}:${minutes.toString().padStart(2, '0')}`;
+        }
+
+        // Get the current offset in minutes for the given time zone
+        function getOffset(timeZone) {
+            const now = new Date();
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            const parts = formatter.formatToParts(now);
+            const partValues = parts.reduce((acc, part) => {
+                acc[part.type] = part.value;
+                return acc;
+            }, {});
+            const localDate = new Date(`${partValues.year}-${partValues.month}-${partValues.day}T${partValues.hour}:${partValues.minute}:${partValues.second}`);
+            const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+            const offsetMs = localDate - utcDate;
+            return offsetMs / (1000 * 60); // Convert milliseconds to minutes
+        }
+
+        // Draw and update the analog clock
+        function drawClock(canvas, timeZone, offsetElement) {
+            const ctx = canvas.getContext('2d');
+            const radius = canvas.width / 2;
+            ctx.translate(radius, radius);
+
+            // Set the offset once at start-up
+            const offsetMinutes = getOffset(timeZone);
+            offsetElement.textContent = formatOffset(offsetMinutes);
+
+            function updateClock() {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('en-US', { timeZone, hour12: false });
+                const [hours, minutes, seconds] = timeString.split(':').map(Number);
+
+                // Clear and draw the dial
+                ctx.clearRect(-radius, -radius, canvas.width, canvas.height);
+                ctx.beginPath();
+                ctx.arc(0, 0, radius * 0.9, 0, 2 * Math.PI);
+                ctx.fillStyle = 'white';
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw the hour numbers
+                ctx.font = radius * 0.15 + 'px Arial';
+                ctx.textBaseline = 'middle';
+                ctx.textAlign = 'center';
+                for (let num = 1; num <= 12; num++) {
+                    const angle = num * Math.PI / 6;
+                    const x = Math.sin(angle) * radius * 0.75;
+                    const y = -Math.cos(angle) * radius * 0.75;
+                    ctx.fillStyle = '#333';
+                    ctx.fillText(num.toString(), x, y);
+                }
+
+                // Calculate angles of the hands
+                const secondAngle = (seconds / 60) * 2 * Math.PI - Math.PI / 2;
+                const minuteAngle = (minutes / 60) * 2 * Math.PI - Math.PI / 2;
+                const hourAngle = ((hours % 12) / 12) * 2 * Math.PI + (minutes / 60) * Math.PI / 6 - Math.PI / 2;
+
+                // Hour hand
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(hourAngle) * radius * 0.5, Math.sin(hourAngle) * radius * 0.5);
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+
+                // Minute hand
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(minuteAngle) * radius * 0.7, Math.sin(minuteAngle) * radius * 0.7);
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Second hand
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(secondAngle) * radius * 0.8, Math.sin(secondAngle) * radius * 0.8);
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Center dot
+                ctx.beginPath();
+                ctx.arc(0, 0, 5, 0, 2 * Math.PI);
+                ctx.fillStyle = '#333';
+                ctx.fill();
+            }
+
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            // Update the offset every minute (covers DST changes)
+            setInterval(() => {
+                const newOffsetMinutes = getOffset(timeZone);
+                offsetElement.textContent = formatOffset(newOffsetMinutes);
+            }, 60000);
+        }
+
+        // Time zones for all cities
+        const cities = [
+            { id: 'sanFranciscoClock', timeZone: 'America/Los_Angeles' },
+            { id: 'newYorkClock', timeZone: 'America/New_York' },
+            { id: 'londonClock', timeZone: 'Europe/London' },
+            { id: 'rigaClock', timeZone: 'Europe/Riga' },
+            { id: 'moscowClock', timeZone: 'Europe/Moscow' },
+            { id: 'newDelhiClock', timeZone: 'Asia/Kolkata' },
+            { id: 'beijingClock', timeZone: 'Asia/Shanghai' },
+            { id: 'tokyoClock', timeZone: 'Asia/Tokyo' },
+            { id: 'canberraClock', timeZone: 'Australia/Canberra' }
+        ];
+
+        // Initialize all clocks
+        cities.forEach(city => {
+            const canvas = document.getElementById(city.id);
+            const offsetElement = canvas.nextElementSibling.querySelector('.offset');
+            drawClock(canvas, city.timeZone, offsetElement);
+        });
+    </script>
+</body>
+</html>
